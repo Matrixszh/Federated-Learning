@@ -1,10 +1,14 @@
 import urllib.request
 import numpy as np
 import torch
+import torch.optim as optim
 from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
+import tensorflow as tf
+import matplotlib.pyplot as plt
 
+# Download functions
 def download_url(url, save_as):
     response = urllib.request.urlopen(url)
     data = response.read()
@@ -12,7 +16,7 @@ def download_url(url, save_as):
     file.write(data)
     file.close()
     response.close()
-    
+
 def read_binary_file(file):
     f = open(file,'rb')
     block = f.read()
@@ -24,6 +28,7 @@ def split_text_in_lines(text):
 def split_by_tabs(line):
     return line.split('\t')
 
+# Data URLs and download
 names_link = 'https://archive.ics.uci.edu/ml/machine-learning-databases/acute/diagnosis.names'
 data_link = 'https://archive.ics.uci.edu/ml/machine-learning-databases/acute/diagnosis.data'
 diagnosis_names = 'diagnosis.names'
@@ -31,7 +36,7 @@ diagnosis_data = 'diagnosis.data'
 download_url(names_link, diagnosis_names)
 download_url(data_link, diagnosis_data)
 
-
+# Parse functions
 def parse_double(field):
     field = field.replace(',', '.')
     return float(field)
@@ -70,6 +75,7 @@ def get_indexes_for_2_datasets(n, training = 80):
     train = int(training / 100. * n)
     return indexes[:train], indexes[train:]
 
+# Read data
 matrix = read_np_array()
 n_samples, n_dimensions = matrix.shape
 
@@ -82,23 +88,14 @@ def print_dataset(name, data):
     print(data)
 
 print_dataset('Train', train_data)
-
-
 print_dataset('Test', test_data)
 
-
-import tensorflow as tf
-
-tf.__version__
-
-
-
+# Logistic Regression Model
 input_size = 6
 learning_rate = 0.01
 num_iterations = 20000
 
 class LogisticRegression(torch.nn.Module):
-
     def __init__(self):
         super(LogisticRegression, self).__init__()
         self.linear = torch.nn.Linear(input_size, 1)
@@ -129,14 +126,7 @@ def get_input_and_output(data):
 input, output1, output2 = get_input_and_output(train_data)
 test_input, test_output1, test_output2 = get_input_and_output(test_data)
 
-
-import matplotlib.pyplot as plt
-#%matplotlib inline
-
-diagnosis_title1 = 'Inflammation of Urinary Bladder'
-diagnosis_title2 = 'Nephritis of Renal Pelvis Origin'
-
-
+# Plot graphs
 def plot_graphs(diagnosis_title, losses, accuracies):
     plt.plot(losses)
     plt.title(f"{diagnosis_title} - Training Loss")
@@ -149,6 +139,7 @@ def plot_graphs(diagnosis_title, losses, accuracies):
     plt.ylabel("Training Accuracy (Percent %)")
     plt.show()
 
+# Train the model
 def train_model(diagnosis_title, input, output, test_input, test_output):
     model = LogisticRegression()
     criterion = torch.nn.BCELoss(size_average=True)
@@ -173,20 +164,11 @@ def train_model(diagnosis_title, input, output, test_input, test_output):
     print('\nTesting Accuracy = {}'.format(to_percent(test_acc)))
     return model
 
-model = train_model(diagnosis_title1, input, output1, test_input, test_output1)
+# Train for both diagnosis types
+model = train_model('Inflammation of Urinary Bladder', input, output1, test_input, test_output1)
+model = train_model('Nephritis of Renal Pelvis Origin', input, output2, test_input, test_output2)
 
-
-model = train_model(diagnosis_title2, input, output2, test_input, test_output2)
-
-
-#Federated Learning
-
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import matplotlib.pyplot as plt
-
-# Dummy model class – replace with your own
+# Federated Learning Setup
 class LogisticRegression(nn.Module):
     def __init__(self):
         super().__init__()
@@ -203,16 +185,13 @@ class LogisticRegression(nn.Module):
 def to_percent(x):
     return '{:.2f}%'.format(x)
 
-# -------------------------
-# Setup
-# -------------------------
-
+# Federated Learning Configuration
 n_hospitals = 4
 iterations = 1000
 worker_iterations = 5
 learning_rate = 0.01
 
-# Convert and split data (assumes train_data is already loaded as a NumPy array)
+# Convert and split data
 train_data = torch.tensor(train_data, dtype=torch.float32)
 test_input = torch.tensor(test_input, dtype=torch.float32)
 test_output1 = torch.tensor(test_output1, dtype=torch.float32)
@@ -234,6 +213,7 @@ for i in range(n_hospitals):
     hospital_targets1.append(targets1)
     hospital_targets2.append(targets2)
 
+# Plot Federated Learning Graphs
 def plot_federated_graphs(title, losses, accuracies):
     for i in range(n_hospitals):
         plt.plot(losses[i], label=f'Hospital {i}')
@@ -257,9 +237,6 @@ def compute_federated_accuracy(model, x, y):
         pred_labels = (preds >= 0.5).float()
         acc = (pred_labels == y).float().mean()
     return 100 * acc.item()
-
-def compute_accuracy(model, x, y):
-    return compute_federated_accuracy(model, x, y)
 
 def federated_learning(title, features_list, targets_list, test_x, test_y):
     model = LogisticRegression()
@@ -299,10 +276,7 @@ def federated_learning(title, features_list, targets_list, test_x, test_y):
                 print(f"  Hospital {i} - Loss: {losses[i][-1]:.4f}, Accuracy: {accuracies[i][-1]:.2f}%")
 
     plot_federated_graphs(title, losses, accuracies)
-    test_acc = compute_accuracy(model, test_x, test_y)
-    print(f"\nTest Accuracy for {title}: {to_percent(test_acc)}")
-    return model
 
-# --- Run Federated Learning ---
-model1 = federated_learning("Diagnosis 1", hospital_features, hospital_targets1, test_input, test_output1)
-model2 = federated_learning("Diagnosis 2", hospital_features, hospital_targets2, test_input, test_output2)
+# Run Federated Learning for both diagnosis titles
+federated_learning('Inflammation of Urinary Bladder Federated', hospital_features, hospital_targets1, test_input, test_output1)
+federated_learning('Nephritis of Renal Pelvis Origin Federated', hospital_features, hospital_targets2, test_input, test_output2)
