@@ -241,14 +241,15 @@ with tab_data:
 with tab_central:
     st.header("Centralized Model Training")
     if 'data' in st.session_state:
-        lr = st.slider("Learning Rate", 0.001, 0.1, 0.01)
+        # Fixed learning rate at 0.01 - removed slider
         epochs = st.slider("Training Epochs", 100, 5000, 1000)
         
         if st.button("Train Centralized Model"):
             progress = st.progress(0)
             input, output1, output2 = get_input_output(st.session_state.data)
+            # Fixed learning rate at 0.01
             model, acc = centralized_training("Bladder Inflammation", input, output1, 
-                                            input, output1, lr, epochs, progress)
+                                            input, output1, 0.01, epochs, progress)
             st.session_state.central_model = model
             st.success(f"Model trained! Test Accuracy: {acc:.1f}%")
             
@@ -266,7 +267,7 @@ with tab_federated:
         n_hospitals = st.slider("Participating Hospitals", 2, 10, 4, key="fl_hospitals")
         fl_epochs = st.slider("Federated Rounds", 10, 500, 100, key="fl_rounds")
         local_epochs = st.slider("Local Epochs/Round", 1, 20, 5, key="fl_local_epochs")
-        lr = st.slider("Learning Rate", 0.001, 0.1, 0.01, key="fl_lr")
+        # Fixed learning rate at 0.01 - removed slider
         
         if st.button("Start Federated Training"):
             progress = st.progress(0)
@@ -277,9 +278,10 @@ with tab_federated:
             features = [torch.tensor(h[:, :6], dtype=torch.float32) for h in hospital_data]
             targets = [torch.tensor(h[:, 6], dtype=torch.float32).view(-1,1) for h in hospital_data]
             
+            # Fixed learning rate at 0.01
             model, acc = federated_training("Federated Bladder Inflammation", 
                                           features, targets, features[0], targets[0],
-                                          n_hospitals, fl_epochs, local_epochs, lr, progress)
+                                          n_hospitals, fl_epochs, local_epochs, 0.01, progress)
             st.session_state.federated_model = model
             st.success(f"Federated training complete! Test Accuracy: {acc:.1f}%")
             
@@ -293,7 +295,7 @@ with tab_federated:
 
 with tab_predict:
     st.header("Patient Diagnosis Prediction")
-    st.markdown("Enter patient symptoms to predict potential conditions:")
+    st.markdown("Enter patient symptoms to predict potential bladder inflammation:")
     
     with st.form("diagnosis_form"):
         temp = st.number_input("Temperature (°C)", 35.0, 42.0, 36.6)
@@ -326,9 +328,9 @@ with tab_predict:
             diagnosis = "Positive" if prob >= 0.5 else "Negative"
             confidence = prob if prob >= 0.5 else 1-prob
             
-            st.subheader("Prediction Result")
+            st.subheader("Bladder Inflammation Prediction")
             col1, col2 = st.columns(2)
-            col1.metric("Diagnosis", diagnosis)
+            col1.metric("Diagnosis", f"{diagnosis} for Bladder Inflammation")
             col2.metric("Confidence", f"{confidence*100:.1f}%")
             
             # Explanation - FIXED CODE HERE
@@ -342,7 +344,11 @@ with tab_predict:
                     reasons.append(f"{feature} (Impact: {abs(weight):.2f})")
             
             st.markdown(f"**Key contributing factors:** {', '.join(reasons[:3]) if reasons else 'None identified'}")
-
+            
+            if diagnosis == "Positive":
+                st.warning("**The patient may have bladder inflammation. Medical consultation recommended.**")
+            else:
+                st.success("**The patient is unlikely to have bladder inflammation.**")
 # ---------------------
 # Report Generation (Fixed)
 # ---------------------
